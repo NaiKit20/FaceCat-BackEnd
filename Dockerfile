@@ -1,7 +1,7 @@
 FROM node:boron
 RUN mkdir -p /usr/src/app
 WORKDIR /usr/src/app
-ARG CACHEBUST=1 
+ARG CACHEBUST=2 
 COPY package.json /usr/src/app/
 RUN npm install
 COPY . /usr/src/app
