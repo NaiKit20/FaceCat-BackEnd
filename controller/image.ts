@@ -32,7 +32,7 @@ class FileMiddleware {
 
 // แสดงรูปภาพทั้งหมด
 router.get("/", (req, res) => {
-  conn.query("SELECT * FROM `image`", (err, result) => {
+  conn.query("SELECT image.uid, image.mid, image.name, image.path, SUM(vote.vote) FROM `vote`, `image` WHERE image.mid = vote.mid GROUP BY image.mid ORDER BY SUM(vote.vote) DESC", (err, result) => {
     if (err) {
       res.status(500).json({
         result: err.sqlMessage,
@@ -85,7 +85,7 @@ router.delete("/:id", fileUpload.diskLoader.single("file"), (req, res) => {
           fs.unlinkSync(filePath);
           // ลบผลโหวตของรูปจาก database
           conn.query(
-            "SELECT * FROM `vote` WHERE mid = ?",
+            "DELETE FROM `vote` WHERE mid = ?",
             [mid],
             (err, result) => {
               if (err) {

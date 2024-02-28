@@ -4,6 +4,7 @@ import mysql from "mysql";
 import cors from "cors";
 import { router as user } from "./controller/user";
 import { router as image } from "./controller/image";
+import { router as vote } from "./controller/vote";
 
 export const conn = mysql.createPool({
   connectionLimit: 10,
@@ -24,4 +25,5 @@ app.use(bodyParser.json());
 
 app.use("/user", user);
 app.use("/image", image);
+app.use("/vote", vote);
 app.use("/uploads", express.static("uploads"));

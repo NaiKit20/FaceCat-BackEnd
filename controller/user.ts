@@ -3,8 +3,16 @@ import mysql from "mysql";
 import { conn } from "./../app";
 import { LoginPostReq } from "../model/Request/LoginPostReq";
 import { UserPostReq } from "../model/Request/UserPostReq";
+import * as crypto from 'crypto';
 
 export const router = express.Router();
+
+// ใช้ crypto เพื่อเข้ารหัสผ่านของผู้ใช่
+function hashPassword(password: string): string {
+  const hash = crypto.createHash('sha256');
+  hash.update(password);
+  return hash.digest('hex');
+}
 
 router.get("/", (req, res) => {
   res.send("user controller");
@@ -17,7 +25,7 @@ router.post("/register", (req, res) => {
     "INSERT INTO `user`(`email`, `password`, `image`, `type`, `name`) VALUES (?,?,?,?,?)";
   sql = mysql.format(sql, [
     user.email,
-    user.password,
+    hashPassword(user.password),
     user.image,
     user.type,
     user.name,
@@ -42,7 +50,7 @@ router.post("/login", (req, res) => {
   let login: LoginPostReq = req.body;
   conn.query(
     "SELECT * FROM `user` WHERE email = ? AND password = ?",
-    [login.email, login.password],
+    [login.email, hashPassword(login.password)],
     (err, result) => {
       if (err) {
         res.status(500).json({
