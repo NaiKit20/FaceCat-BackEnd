@@ -33,7 +33,7 @@ router.post("/register", (req, res) => {
   conn.query(sql, (err, result) => {
     if (err) {
       res
-        .status(409)
+        .status(401)
         .json({ affected_row: 0, last_idx: 0, result: err.sqlMessage });
     } else {
       res.status(201).json({
