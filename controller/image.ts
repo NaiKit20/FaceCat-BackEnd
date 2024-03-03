@@ -4,7 +4,7 @@ import multer from "multer";
 import mysql from "mysql";
 import { UploadPostReq } from "../model/Request/UploadPostReq";
 import { conn } from "./../app";
-import { Image } from "../model/Response/image";
+import { Image as ScoreRes } from "../model/Response/image";
 import * as fs from "fs";
 
 export const router = express.Router();
@@ -32,19 +32,22 @@ class FileMiddleware {
 
 // แสดงรูปภาพทั้งหมด
 router.get("/", (req, res) => {
-  conn.query("SELECT image.uid, image.mid, image.name, image.path, SUM(vote.vote) FROM `vote`, `image` WHERE image.mid = vote.mid GROUP BY image.mid ORDER BY SUM(vote.vote) DESC", (err, result) => {
-    if (err) {
-      res.status(500).json({
-        result: err.sqlMessage,
-      });
-    } else {
-      if (result.length > 0) {
-        res.status(200).json(result);
+  conn.query(
+    "SELECT image.uid, image.mid, image.name, image.path, SUM(CASE WHEN vote.type = 1 THEN vote.vote ELSE 0 END) - SUM(CASE WHEN vote.type = 0 THEN vote.vote ELSE 0 END) AS total_vote_difference FROM image INNER JOIN vote ON image.mid = vote.mid GROUP BY image.mid ORDER BY SUM(vote.vote) DESC",
+    (err, result) => {
+      if (err) {
+        res.status(500).json({
+          result: err.sqlMessage,
+        });
       } else {
-        res.status(401).json(result);
+        if (result.length > 0) {
+          res.status(200).json(result);
+        } else {
+          res.status(401).json(result);
+        }
       }
     }
-  });
+  );
 });
 
 // upload file ลงเครื่องและเก็บที่อยู่ภาพลงใน database
@@ -77,7 +80,7 @@ router.delete("/:id", fileUpload.diskLoader.single("file"), (req, res) => {
       res.status(500).send("Failed to delete file");
     } else {
       if (result.length > 0) {
-        const image: Image[] = result;
+        const image: ScoreRes[] = result;
         const filePath = path.join(__dirname, "..", "uploads", image[0].path);
         // ตรวจสอบว่า path file มีหรือไม่
         if (fs.existsSync(filePath)) {
@@ -116,4 +119,31 @@ router.delete("/:id", fileUpload.diskLoader.single("file"), (req, res) => {
       }
     }
   });
+});
+
+// สุ่มรูปภาพว่าใครเป็นคนสุ่ม
+router.get("/random/:uid", (req, res) => {
+  conn.query(
+    "SELECT image.mid, image.path, image.name, image.uid, SUM(CASE WHEN vote.type = 1 THEN vote.vote ELSE 0 END) - SUM(CASE WHEN vote.type = 0 THEN vote.vote ELSE 0 END) AS score FROM `image`, `vote` WHERE vote.mid = image.mid and image.uid != ? GROUP by image.mid",
+    [req.params.uid],
+    (err, result) => {
+      if (err) {
+        res.status(500).json({ result: err.sqlMessage });
+      } else {  
+        const images: ScoreRes[] = result;
+        console.log(images);
+        
+        let image1: ScoreRes = images[Math.floor(Math.random() * images.length)];
+        let image2: ScoreRes = images[Math.floor(Math.random() * images.length)];
+        // สุ่มอีกรูปใหม่จนกว่ารูปทั้ง2 ไม่ใช่รูปของคนคนเดียวกัน
+        while (image1.uid === image2.uid) {
+          image2 = images[Math.floor(Math.random() * images.length)];
+        }
+        res.status(200).json([
+          image1,
+          image2
+        ]);
+      }
+    }
+  );
 });
