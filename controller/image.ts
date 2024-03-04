@@ -5,32 +5,29 @@ import mysql from "mysql";
 import { UploadPostReq } from "../model/Request/UploadPostReq";
 import { conn } from "./../app";
 import { Image as ScoreRes } from "../model/Response/image";
+import { storage } from "../firebase";
+import { ref } from "firebase/storage";
+import { uploadBytesResumable, getDownloadURL } from "firebase/storage";
 import * as fs from "fs";
 
 export const router = express.Router();
 
-// การ upload file ลงเครื่อง
+// Middleware save to memory
 class FileMiddleware {
+  //Attribute of class
   filename = "";
+  //Attribute diskloader for saving file to disk
   public readonly diskLoader = multer({
-    storage: multer.diskStorage({
-      destination: (_req, _file, cb) => {
-        cb(null, path.join(__dirname, "../uploads"));
-      },
-      filename: (req, file, cb) => {
-        const uniqueSuffix =
-          Date.now() + "-" + Math.round(Math.random() * 10000);
-        this.filename = uniqueSuffix + "." + file.originalname.split(".").pop();
-        cb(null, this.filename);
-      },
-    }),
+    // storage = saving file to memory
+    storage: multer.memoryStorage(),
+    // limit file size
     limits: {
       fileSize: 67108864, // 64 MByte
     },
   });
 }
 
-// แสดงรูปภาพทั้งหมด
+// แสดงรูปภาพทั้งหมด แสดงตามคะแนนมากไปน้อย
 router.get("/", (req, res) => {
   conn.query(
     "SELECT image.mid, image.path, image.name, image.uid, SUM(CASE WHEN vote.type = 1 THEN vote.vote ELSE 0 END) - SUM(CASE WHEN vote.type = 0 THEN vote.vote ELSE 0 END) AS score FROM `image`, `vote` WHERE vote.mid = image.mid GROUP by image.mid ORDER by score DESC",
@@ -50,26 +47,46 @@ router.get("/", (req, res) => {
   );
 });
 
-// upload file ลงเครื่องและเก็บที่อยู่ภาพลงใน database
+// upload file ลงใน Firebase Store และเก็บที่อยู่ภาพลงใน database
 const fileUpload = new FileMiddleware();
-router.post("/upload", fileUpload.diskLoader.single("file"), (req, res) => {
-  let user: UploadPostReq = req.body;
-  let sql = "INSERT INTO `image`(`path`, `name`, `uid`) VALUES (?,?,?)";
-  sql = mysql.format(sql, [fileUpload.filename, user.name, user.uid]);
-  conn.query(sql, (err, result) => {
-    if (err) {
-      res
-        .status(409)
-        .json({ affected_row: 0, last_idx: 0, result: err.sqlMessage });
-    } else {
-      res.status(201).json({
-        affected_row: result.affectedRows,
-        last_idx: result.insertId,
-        result: fileUpload.filename,
-      });
-    }
-  });
-});
+router.post(
+  "/upload",
+  fileUpload.diskLoader.single("file"),
+  async (req, res) => {
+    // Upload to firebase storage
+    const filename =
+      Date.now() + "-" + Math.round(Math.random() * 1000) + ".png";
+    // Define locations to be saved on storag
+    const storageRef = ref(storage, "/images/" + filename);
+    // define file detail
+    const metaData = { contentType: req.file!.mimetype };
+    // Start upload
+    const snapshost = await uploadBytesResumable(
+      storageRef,
+      req.file!.buffer,
+      metaData
+    );
+    // Get url image from storage
+    const url = await getDownloadURL(snapshost.ref);
+    // บันทึกที่อยู่รูปภาพลง Database
+    let user: UploadPostReq = req.body;
+    let sql = "INSERT INTO `image`(`path`, `name`, `uid`) VALUES (?,?,?)";
+    sql = mysql.format(sql, [url, user.name, user.uid]);
+    conn.query(sql, (err, result) => {
+      if (err) {
+        res
+          .status(409)
+          .json({ affected_row: 0, last_idx: 0, result: err.sqlMessage });
+      } else {
+        res.status(201).json({
+          affected_row: result.affectedRows,
+          last_idx: result.insertId,
+          result: url,
+        });
+      }
+    });
+  }
+);
 
 // ลบรูปภาพจาก server และลบข้อมูลจาก database
 router.delete("/:id", fileUpload.diskLoader.single("file"), (req, res) => {
@@ -129,20 +146,19 @@ router.get("/random/:uid", (req, res) => {
     (err, result) => {
       if (err) {
         res.status(500).json({ result: err.sqlMessage });
-      } else {  
+      } else {
         const images: ScoreRes[] = result;
         console.log(images);
-        
-        let image1: ScoreRes = images[Math.floor(Math.random() * images.length)];
-        let image2: ScoreRes = images[Math.floor(Math.random() * images.length)];
+
+        let image1: ScoreRes =
+          images[Math.floor(Math.random() * images.length)];
+        let image2: ScoreRes =
+          images[Math.floor(Math.random() * images.length)];
         // สุ่มอีกรูปใหม่จนกว่ารูปทั้ง2 ไม่ใช่รูปของคนคนเดียวกัน
         while (image1.uid === image2.uid) {
           image2 = images[Math.floor(Math.random() * images.length)];
         }
-        res.status(200).json([
-          image1,
-          image2
-        ]);
+        res.status(200).json([image1, image2]);
       }
     }
   );
