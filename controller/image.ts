@@ -4,9 +4,10 @@ import multer from "multer";
 import mysql from "mysql";
 import { UploadPostReq } from "../model/Request/UploadPostReq";
 import { conn } from "./../app";
-import { Image as ScoreRes } from "../model/Response/image";
+import { Image } from "../model/Response/image";
 import { storage } from "../firebase";
-import { ref } from "firebase/storage";
+import { deleteObject, ref } from "firebase/storage";
+import {} from "firebase/storage";
 import { uploadBytesResumable, getDownloadURL } from "firebase/storage";
 import * as fs from "fs";
 
@@ -92,18 +93,22 @@ router.post(
 router.delete("/:id", fileUpload.diskLoader.single("file"), (req, res) => {
   const mid = req.params.id;
   // ค้นหาข้อมูลรูปภาพที่ต้องการลบจาก database
-  conn.query("SELECT * FROM `image` WHERE mid = ?", [mid], (err, result) => {
-    if (err) {
-      res.status(500).send("Failed to delete file");
-    } else {
-      if (result.length > 0) {
-        const image: ScoreRes[] = result;
-        const filePath = path.join(__dirname, "..", "uploads", image[0].path);
-        // ตรวจสอบว่า path file มีหรือไม่
-        if (fs.existsSync(filePath)) {
-          // ลบไฟล์จาก server
-          fs.unlinkSync(filePath);
-          // ลบผลโหวตของรูปจาก database
+  conn.query(
+    "SELECT `mid`, `path`, `name`, `uid`, NULL as score FROM `image` WHERE mid = ?",
+    [mid],
+    async (err, result) => {
+      if (err) {
+        res.status(500).send("Failed to delete file");
+      } else {
+        if (result.length > 0) {
+          const image: Image[] = result;
+          // ลบรูปภาพออกจาก firebase
+          const storageRef = ref(
+            storage,
+            "/images/" + image[0].path.split("F")[1].split("?")[0]
+          );
+          const snapshost = await deleteObject(storageRef);
+          // ลบข้อมูลการโหวตของรูปภาพออกจาก database
           conn.query(
             "DELETE FROM `vote` WHERE mid = ?",
             [mid],
@@ -111,7 +116,7 @@ router.delete("/:id", fileUpload.diskLoader.single("file"), (req, res) => {
               if (err) {
                 res.status(500).json({ affected_row: 0 });
               } else {
-                // ลบข้อมูลรูปจาก database
+                // ลบข้อมูลรูปภาพจาก database
                 conn.query(
                   "DELETE FROM `image` WHERE mid = ?",
                   [mid],
@@ -129,13 +134,11 @@ router.delete("/:id", fileUpload.diskLoader.single("file"), (req, res) => {
             }
           );
         } else {
-          res.status(500).send("Failed to delete file");
+          res.status(500).send("ImageID not found");
         }
-      } else {
-        res.status(500).send("ImageID not found");
       }
     }
-  });
+  );
 });
 
 // สุ่มรูปภาพว่าใครเป็นคนสุ่ม
@@ -147,13 +150,11 @@ router.get("/random/:uid", (req, res) => {
       if (err) {
         res.status(500).json({ result: err.sqlMessage });
       } else {
-        const images: ScoreRes[] = result;
+        const images: Image[] = result;
         console.log(images);
 
-        let image1: ScoreRes =
-          images[Math.floor(Math.random() * images.length)];
-        let image2: ScoreRes =
-          images[Math.floor(Math.random() * images.length)];
+        let image1: Image = images[Math.floor(Math.random() * images.length)];
+        let image2: Image = images[Math.floor(Math.random() * images.length)];
         // สุ่มอีกรูปใหม่จนกว่ารูปทั้ง2 ไม่ใช่รูปของคนคนเดียวกัน
         while (image1.uid === image2.uid) {
           image2 = images[Math.floor(Math.random() * images.length)];
