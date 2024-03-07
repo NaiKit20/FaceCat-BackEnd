@@ -54,21 +54,8 @@ router.post(
   "/upload",
   fileUpload.diskLoader.single("file"),
   async (req, res) => {
-    // Upload to firebase storage
-    const filename =
-      Date.now() + "-" + Math.round(Math.random() * 1000) + ".png";
-    // Define locations to be saved on storag
-    const storageRef = ref(storage, "/images/" + filename);
-    // define file detail
-    const metaData = { contentType: req.file!.mimetype };
-    // Start upload
-    const snapshost = await uploadBytesResumable(
-      storageRef,
-      req.file!.buffer,
-      metaData
-    );
-    // Get url image from storage
-    const url = await getDownloadURL(snapshost.ref);
+    // upload รูปภาพลง firebase
+    const url = await firebaseUpload(req.file!);
     // บันทึกที่อยู่รูปภาพลง Database
     let user: UploadPostReq = req.body;
     let sql = "INSERT INTO `image`(`path`, `name`, `uid`) VALUES (?,?,?)";
@@ -89,7 +76,7 @@ router.post(
   }
 );
 
-// ลบรูปภาพจาก server และลบข้อมูลจาก database
+// ลบรูปภาพจาก firebase และลบข้อมูลจาก database
 router.delete("/:id", fileUpload.diskLoader.single("file"), (req, res) => {
   const mid = req.params.id;
   // ค้นหาข้อมูลรูปภาพที่ต้องการลบจาก database
@@ -103,11 +90,7 @@ router.delete("/:id", fileUpload.diskLoader.single("file"), (req, res) => {
         if (result.length > 0) {
           const image: Image[] = result;
           // ลบรูปภาพออกจาก firebase
-          const storageRef = ref(
-            storage,
-            "/images/" + image[0].path.split("F")[1].split("?")[0]
-          );
-          const snapshost = await deleteObject(storageRef);
+          await firebaseDelete(image[0].path);
           // ลบข้อมูลการโหวตของรูปภาพออกจาก database
           conn.query(
             "DELETE FROM `vote` WHERE mid = ?",
@@ -164,3 +147,32 @@ router.get("/random/:uid", (req, res) => {
     }
   );
 });
+
+// upload รูปภาพใน firebase
+async function firebaseUpload(file: Express.Multer.File) {
+  // Upload to firebase storage
+  const filename = Date.now() + "-" + Math.round(Math.random() * 1000) + ".png";
+  // Define locations to be saved on storag
+  const storageRef = ref(storage, "/images/" + filename);
+  // define file detail
+  const metaData = { contentType: file.mimetype };
+  // Start upload
+  const snapshost = await uploadBytesResumable(
+    storageRef,
+    file.buffer,
+    metaData
+  );
+  // Get url image from storage
+  const url = await getDownloadURL(snapshost.ref);
+
+  return url;
+}
+
+// ลบรูปภาพใน firebase
+async function firebaseDelete(path: string) {
+  const storageRef = ref(
+    storage,
+    "/images/" + path.split("F")[1].split("?")[0]
+  );
+  const snapshost = await deleteObject(storageRef);
+}
