@@ -31,7 +31,7 @@ class FileMiddleware {
 // แสดงรูปภาพทั้งหมด แสดงตามคะแนนมากไปน้อย
 router.get("/", (req, res) => {
   conn.query(
-    "SELECT image.mid, image.path, image.name, image.uid, SUM(CASE WHEN vote.type = 1 THEN vote.vote ELSE 0 END) - SUM(CASE WHEN vote.type = 0 THEN vote.vote ELSE 0 END) AS score FROM `image`, `vote` WHERE vote.mid = image.mid GROUP by image.mid ORDER by score DESC",
+    "SELECT image.mid, image.path, image.name, image.uid, SUM(vote.vote) AS score FROM `image`, `vote` WHERE vote.mid = image.mid GROUP by image.mid ORDER by score DESC",
     (err, result) => {
       if (err) {
         res.status(500).json({
@@ -43,6 +43,30 @@ router.get("/", (req, res) => {
         } else {
           res.status(401).json(result);
         }
+      }
+    }
+  );
+});
+
+// แสดงรูปภาพของ User
+router.get("/user/:uid", (req, res) => {
+  conn.query(
+    "SELECT image.mid, image.path, image.name, image.uid, SUM(CASE WHEN vote.type = 1 THEN vote.vote ELSE 0 END) - SUM(CASE WHEN vote.type = 0 THEN vote.vote ELSE 0 END) AS score FROM `image`, `vote` WHERE vote.mid = image.mid and image.uid != ? GROUP by image.mid",
+    [req.params.uid],
+    (err, result) => {
+      if (err) {
+        res.status(500).json({ result: err.sqlMessage });
+      } else {
+        const images: Image[] = result;
+        console.log(images);
+
+        let image1: Image = images[Math.floor(Math.random() * images.length)];
+        let image2: Image = images[Math.floor(Math.random() * images.length)];
+        // สุ่มอีกรูปใหม่จนกว่ารูปทั้ง2 ไม่ใช่รูปของคนคนเดียวกัน
+        while (image1.uid === image2.uid) {
+          image2 = images[Math.floor(Math.random() * images.length)];
+        }
+        res.status(200).json([image1, image2]);
       }
     }
   );
@@ -60,17 +84,28 @@ router.post(
     let user: UploadPostReq = req.body;
     let sql = "INSERT INTO `image`(`path`, `name`, `uid`) VALUES (?,?,?)";
     sql = mysql.format(sql, [url, user.name, user.uid]);
-    conn.query(sql, (err, result) => {
+    conn.query(sql, (err, resultImage) => {
       if (err) {
         res
           .status(409)
           .json({ affected_row: 0, last_idx: 0, result: err.sqlMessage });
       } else {
-        res.status(201).json({
-          affected_row: result.affectedRows,
-          last_idx: result.insertId,
-          result: url,
-        });
+        // เพิ่มคะแนนของรูปภาพให้มีค่าเริ่มค้นเท่ากัน 0
+        conn.query(
+          "INSERT INTO `vote`(`mid`, `uid`, `vote`) VALUES (?,?,?)",
+          [resultImage.insertId, null, 0],
+          (err, result) => {
+            if (err) {
+              res.status(500).json({ affected_row: 0, result: err.sqlMessage });
+            } else {
+              res.status(201).json({
+                affected_row: result.affectedRows,
+                last_idx: resultImage.insertId,
+                result: url,
+              });
+            }
+          }
+        );
       }
     });
   }
@@ -125,10 +160,9 @@ router.delete("/:id", fileUpload.diskLoader.single("file"), (req, res) => {
 });
 
 // สุ่มรูปภาพว่าใครเป็นคนสุ่ม
-router.get("/random/:uid", (req, res) => {
+router.get("/random", (req, res) => {
   conn.query(
-    "SELECT image.mid, image.path, image.name, image.uid, SUM(CASE WHEN vote.type = 1 THEN vote.vote ELSE 0 END) - SUM(CASE WHEN vote.type = 0 THEN vote.vote ELSE 0 END) AS score FROM `image`, `vote` WHERE vote.mid = image.mid and image.uid != ? GROUP by image.mid",
-    [req.params.uid],
+    "SELECT image.mid, image.path, image.name, image.uid, SUM(vote.vote) AS score FROM `image`, `vote` WHERE vote.mid = image.mid GROUP by image.mid",
     (err, result) => {
       if (err) {
         res.status(500).json({ result: err.sqlMessage });
@@ -139,7 +173,7 @@ router.get("/random/:uid", (req, res) => {
         let image1: Image = images[Math.floor(Math.random() * images.length)];
         let image2: Image = images[Math.floor(Math.random() * images.length)];
         // สุ่มอีกรูปใหม่จนกว่ารูปทั้ง2 ไม่ใช่รูปของคนคนเดียวกัน
-        while (image1.uid === image2.uid) {
+        while (image1.mid === image2.mid) {
           image2 = images[Math.floor(Math.random() * images.length)];
         }
         res.status(200).json([image1, image2]);
