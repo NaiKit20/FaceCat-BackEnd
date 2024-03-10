@@ -48,31 +48,23 @@ router.get("/", (req, res) => {
   );
 });
 
-// แสดงรูปภาพของ User
+// แสดงรูปภาพของ User ที่มีทั้งหมด
 router.get("/user/:uid", (req, res) => {
+  const uid = req.params.uid;
   conn.query(
-    "SELECT image.mid, image.path, image.name, image.uid, SUM(CASE WHEN vote.type = 1 THEN vote.vote ELSE 0 END) - SUM(CASE WHEN vote.type = 0 THEN vote.vote ELSE 0 END) AS score FROM `image`, `vote` WHERE vote.mid = image.mid and image.uid != ? GROUP by image.mid",
-    [req.params.uid],
-    (err, result) => {
+    "SELECT image.mid, image.path, image.name, image.uid, SUM(vote.vote) AS score FROM `image`, `vote` WHERE vote.mid = image.mid and image.uid = ? GROUP by image.mid",
+    [uid],
+    async (err, result) => {
       if (err) {
-        res.status(500).json({ result: err.sqlMessage });
+        res.status(500).send(err);
       } else {
-        const images: Image[] = result;
-        console.log(images);
-
-        let image1: Image = images[Math.floor(Math.random() * images.length)];
-        let image2: Image = images[Math.floor(Math.random() * images.length)];
-        // สุ่มอีกรูปใหม่จนกว่ารูปทั้ง2 ไม่ใช่รูปของคนคนเดียวกัน
-        while (image1.uid === image2.uid) {
-          image2 = images[Math.floor(Math.random() * images.length)];
-        }
-        res.status(200).json([image1, image2]);
+        res.status(200).json(result)
       }
     }
   );
 });
 
-// upload file ลงใน Firebase Store และเก็บที่อยู่ภาพลงใน database
+// upload file ลงใน Firebase Store และเก็บที่อยู่ภาพลงใน database ผ่านแล้ว
 const fileUpload = new FileMiddleware();
 router.post(
   "/upload",
@@ -111,7 +103,7 @@ router.post(
   }
 );
 
-// ลบรูปภาพจาก firebase และลบข้อมูลจาก database
+// ลบรูปภาพจาก firebase และลบข้อมูลจาก database ผ่านแล้ว
 router.delete("/:id", fileUpload.diskLoader.single("file"), (req, res) => {
   const mid = req.params.id;
   // ค้นหาข้อมูลรูปภาพที่ต้องการลบจาก database
@@ -159,7 +151,7 @@ router.delete("/:id", fileUpload.diskLoader.single("file"), (req, res) => {
   );
 });
 
-// สุ่มรูปภาพว่าใครเป็นคนสุ่ม
+// สุ่มรูปภาพ ผ่านแล้ว
 router.get("/random", (req, res) => {
   conn.query(
     "SELECT image.mid, image.path, image.name, image.uid, SUM(vote.vote) AS score FROM `image`, `vote` WHERE vote.mid = image.mid GROUP by image.mid",
@@ -181,6 +173,8 @@ router.get("/random", (req, res) => {
     }
   );
 });
+
+// Function ***************************************************************************************************
 
 // upload รูปภาพใน firebase
 async function firebaseUpload(file: Express.Multer.File) {

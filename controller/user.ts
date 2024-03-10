@@ -284,6 +284,8 @@ router.post(
   }
 );
 
+// Function ***************************************************************************************************
+
 // upload รูปภาพใน firebase
 async function firebaseUpload(file: Express.Multer.File) {
   // Upload to firebase storage
