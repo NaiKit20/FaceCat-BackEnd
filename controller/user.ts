@@ -14,7 +14,7 @@ import {
 } from "firebase/storage";
 import { storage } from "../firebase";
 import { GetAllUserRes } from "../model/Response/GetAllUserRes";
-import { promisify } from 'util';
+import { promisify } from "util";
 
 export const router = express.Router();
 
@@ -40,122 +40,28 @@ function hashPassword(password: string): string {
   return hash.digest("hex");
 }
 
-// router.get("/", (req, res) => {
-//   conn.query("SELECT * FROM `user`", (err, result) => {
-//     if (err) {
-//       res.status(500).json({
-//         result: err.sqlMessage,
-//       });
-//     } else {
-//       const Users: GetAllUserRes[] = result;
-//       let count = 0;
-//       Users.forEach((user, index) => {
-//         conn.query(
-//           "SELECT image.mid, image.path, image.name, image.uid, SUM(vote.vote) AS score FROM `image`, `vote` WHERE vote.mid = image.mid and image.uid = ? GROUP by image.mid ORDER by score DESC",
-//           [user.uid],
-//           (err, resultImages) => {
-//             if (err) {
-//               res.status(500).json({ result: err.sqlMessage });
-//             } else {
-//               Users[index].Picture = resultImages;
-//               count++;
-
-//               if (count === Users.length) {
-//                 res.status(200).json(Users);
-//               }
-//             }
-//           }
-//         );
-//       });
-//       res.status(200).json(Users);
-//     }
-//   });
-// });
-
-router.get("/", async (req, res) => {
-  let users: GetAllUserRes[] = [];
-
-  const query = promisify(conn.query).bind(conn);
-
-  const userResults: any = await query("SELECT * FROM `user`");
-  console.log(userResults);
-
-  users = userResults.map((user: any) => {
-    return {
-      uid: user.uid,
-      email: user.email,
-      password: user.password,
-      image: user.image,
-      type: user.type,
-      name: user.name,
-      Picture: [],
-    };
+// ค้นหาข้อมูล user จาก uid ผ่านแล้ว
+router.get("/all", (req, res) => {
+  conn.query("SELECT * FROM `user` WHERE type = 0", (err, result) => {
+    if (err) {
+      res.status(500).json(err);
+    } else {
+      res.status(200).json(result);
+    }
   });
-  
-  console.log(users);
-
-  // await conn.query("SELECT * FROM `user`", async (err, userResults) => {
-  //   if (err) {
-  //     res.status(500).json({ error: err.sqlMessage });
-  //   } else {
-  //     users = userResults.map((user: any) => {
-  //       return {
-  //         uid: user.uid,
-  //         email: user.email,
-  //         password: user.password,
-  //         image: user.image,
-  //         type: user.type,
-  //         name: user.name,
-  //         Picture: [],
-  //       };
-  //     });
-  //   }
-  // });
-
-  // console.log(users);
-
 });
 
-// router.get("/", (req, res) => {
-//   conn.query("SELECT * FROM `user`", (err, userResults) => {
-//     if (err) {
-//       res.status(500).json({ error: err.sqlMessage });
-//     } else {
-//       const users: GetAllUserRes[] = userResults.map((user: any) => {
-//         return {
-//           uid: user.uid,
-//           email: user.email,
-//           password: user.password,
-//           image: user.image,
-//           type: user.type,
-//           name: user.name,
-//           Picture: [],
-//         };
-//       });
-
-//       let count = 0;
-
-//       users.forEach((user, index) => {
-//         conn.query(
-//           "SELECT image.mid, image.path, image.name, image.uid, SUM(vote.vote) AS score FROM `image`, `vote` WHERE vote.mid = image.mid AND image.uid = ? GROUP BY image.mid ORDER BY score DESC",
-//           [user.uid],
-//           (err, imageResults) => {
-//             if (err) {
-//               res.status(500).json({ error: err.sqlMessage });
-//             } else {
-//               users[index].Picture = imageResults;
-//               count++;
-
-//               if (count === users.length) {
-//                 res.status(200).json(users);
-//               }
-//             }
-//           }
-//         );
-//       });
-//     }
-//   });
-// });
+// ค้นหาข้อมูล user จาก uid ผ่านแล้ว
+router.get("/:uid", (req, res) => {
+  let uid = +req.params.uid;
+  conn.query("SELECT * FROM `user` WHERE uid = ?", [uid], (err, result) => {
+    if (err) {
+      res.status(500).json(err);
+    } else {
+      res.status(200).json(result[0]);
+    }
+  });
+});
 
 // สมัครสมาชิก ผ่านแล้ว
 router.post("/register", (req, res) => {
