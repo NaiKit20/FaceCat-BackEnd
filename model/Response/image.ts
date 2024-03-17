@@ -4,4 +4,5 @@ export interface Image {
     name: string;
     uid:  number;
     score: number;
+    result: string;
 }

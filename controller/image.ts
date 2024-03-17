@@ -28,7 +28,7 @@ class FileMiddleware {
   });
 }
 
-// แสดงรูปภาพทั้งหมด แสดงตามคะแนนมากไปน้อย
+// แสดงรูปภาพทั้งหมด แสดงตามคะแนนมากไปน้อย โดยเวลาปัจจุบัน
 router.get("/", (req, res) => {
   conn.query(
     "SELECT image.mid, image.path, image.name, image.uid, SUM(vote.vote) AS score FROM `image`, `vote` WHERE vote.mid = image.mid GROUP by image.mid ORDER by score DESC",
@@ -48,7 +48,67 @@ router.get("/", (req, res) => {
   );
 });
 
-// แสดงรูปภาพของ User ที่มีทั้งหมด
+// แสดงอันดับรูปภาพทั้งหมด แสดงตามคะแนนมากไปน้อย โดยเวลาปัจจุบันเปรียบเทียบกับเมื่อวาน ผ่านแล้ว
+router.get("/rank", async (req, res) => {
+  // หาลำดับของรูปภาพทั้งหมดในวันนี้
+  let result1: any = await new Promise((resolve, reject) => {
+    // ค้นหาอันดับรูปภาพทั้งหมดย้อนหลังตามจำนวนวันที่ต้องการ ด้วยวันย้อนหลังที่ i วัน
+    conn.query(
+      "SELECT image.mid, image.path, image.name, image.uid, SUM(vote.vote) AS score FROM image INNER JOIN vote ON vote.mid = image.mid and vote.datetime <= DATE_SUB(NOW(), INTERVAL ? DAY) GROUP BY image.mid ORDER BY score DESC",
+      [0],
+      (err, result) => {
+        if (err) {
+          reject(err);
+        } else {
+          resolve(result);
+        }
+      }
+    );
+  });
+  let today: Image[] = result1;
+  // หาลำดับของรูปภาพทั้งหมดในเมื่อวาน
+  let result2: any = await new Promise((resolve, reject) => {
+    // ค้นหาอันดับรูปภาพทั้งหมดย้อนหลังตามจำนวนวันที่ต้องการ ด้วยวันย้อนหลังที่ i วัน
+    conn.query(
+      "SELECT image.mid, image.path, image.name, image.uid, SUM(vote.vote) AS score FROM image INNER JOIN vote ON vote.mid = image.mid and vote.datetime <= DATE_SUB(NOW(), INTERVAL ? DAY) GROUP BY image.mid ORDER BY score DESC",
+      [1],
+      (err, result) => {
+        if (err) {
+          reject(err);
+        } else {
+          resolve(result);
+        }
+      }
+    );
+  });
+  let yesterday: Image[] = result2;
+
+  //
+
+  for(let i=0;i<today.length;i++) {
+    for(let j=0;j<yesterday.length;j++) {
+      if(today[i].mid == yesterday[j].mid) {
+        if(((j+1)-(i+1)) > 0) {
+          today[i].result =  "+" + ((j+1)-(i+1)).toString();
+        }else if(((j+1)-(i+1)) < 0) {
+          today[i].result = ((j+1)-(i+1)).toString();
+        }else {
+          today[i].result = " "
+        }
+        break;
+      }
+    }
+  }
+
+  //
+
+  res.status(200).json({
+    today: today,
+    yesterday: yesterday
+  })
+});
+
+// แสดงรูปภาพของ User ที่มีทั้งหมด ผ่านแล้ว
 router.get("/user/:uid", (req, res) => {
   const uid = req.params.uid;
   conn.query(
@@ -58,7 +118,7 @@ router.get("/user/:uid", (req, res) => {
       if (err) {
         res.status(500).send(err);
       } else {
-        res.status(200).json(result)
+        res.status(200).json(result);
       }
     }
   );
@@ -160,7 +220,6 @@ router.get("/random", (req, res) => {
         res.status(500).json({ result: err.sqlMessage });
       } else {
         const images: Image[] = result;
-        console.log(images);
 
         let image1: Image = images[Math.floor(Math.random() * images.length)];
         let image2: Image = images[Math.floor(Math.random() * images.length)];

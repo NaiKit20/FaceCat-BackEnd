@@ -26,4 +26,3 @@ app.use(bodyParser.json());
 app.use("/user", user);
 app.use("/image", image);
 app.use("/vote", vote);
-app.use("/uploads", express.static("uploads"));
