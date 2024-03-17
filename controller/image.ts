@@ -82,9 +82,7 @@ router.get("/rank", async (req, res) => {
     );
   });
   let yesterday: Image[] = result2;
-
-  //
-
+  // คำนวนผลปัจจุบันกับเมื่อวานว่าขึ้นลงกี่อันดับ
   for(let i=0;i<today.length;i++) {
     for(let j=0;j<yesterday.length;j++) {
       if(today[i].mid == yesterday[j].mid) {
@@ -99,9 +97,7 @@ router.get("/rank", async (req, res) => {
       }
     }
   }
-
-  //
-
+  // Response
   res.status(200).json({
     today: today,
     yesterday: yesterday
