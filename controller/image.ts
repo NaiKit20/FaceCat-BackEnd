@@ -83,15 +83,15 @@ router.get("/rank", async (req, res) => {
   });
   let yesterday: Image[] = result2;
   // คำนวนผลปัจจุบันกับเมื่อวานว่าขึ้นลงกี่อันดับ
-  for(let i=0;i<today.length;i++) {
-    for(let j=0;j<yesterday.length;j++) {
-      if(today[i].mid == yesterday[j].mid) {
-        if(((j+1)-(i+1)) > 0) {
-          today[i].result =  "+" + ((j+1)-(i+1)).toString();
-        }else if(((j+1)-(i+1)) < 0) {
-          today[i].result = ((j+1)-(i+1)).toString();
-        }else {
-          today[i].result = " "
+  for (let i = 0; i < today.length; i++) {
+    for (let j = 0; j < yesterday.length; j++) {
+      if (today[i].mid == yesterday[j].mid) {
+        if (j + 1 - (i + 1) > 0) {
+          today[i].result = "+" + (j + 1 - (i + 1)).toString();
+        } else if (j + 1 - (i + 1) < 0) {
+          today[i].result = (j + 1 - (i + 1)).toString();
+        } else {
+          today[i].result = " ";
         }
         break;
       }
@@ -100,8 +100,8 @@ router.get("/rank", async (req, res) => {
   // Response
   res.status(200).json({
     today: today,
-    yesterday: yesterday
-  })
+    yesterday: yesterday,
+  });
 });
 
 // แสดงรูปภาพของ User ที่มีทั้งหมด ผ่านแล้ว
@@ -208,26 +208,77 @@ router.delete("/:id", fileUpload.diskLoader.single("file"), (req, res) => {
 });
 
 // สุ่มรูปภาพ ผ่านแล้ว
-router.get("/random", (req, res) => {
+router.get("/random", async (req, res) => {
+  let limit: number;
+  // ดึงเวลา limit การสุ่มรูป
+  let result: any = await new Promise((resolve, reject) => {
+    conn.query(
+      "SELECT * FROM `system`",
+      (err, result) => {
+        if (err) {
+          reject(err);
+        } else {
+          resolve(result);
+        }
+      }
+    );
+  });
+  limit = result[0]["limit"];
+  // สุ่มรูป
   conn.query(
     "SELECT image.mid, image.path, image.name, image.uid, SUM(vote.vote) AS score FROM `image`, `vote` WHERE vote.mid = image.mid GROUP by image.mid",
     (err, result) => {
       if (err) {
         res.status(500).json({ result: err.sqlMessage });
       } else {
-        const images: Image[] = result;
-
-        let image1: Image = images[Math.floor(Math.random() * images.length)];
-        let image2: Image = images[Math.floor(Math.random() * images.length)];
-        // สุ่มอีกรูปใหม่จนกว่ารูปทั้ง2 ไม่ใช่รูปของคนคนเดียวกัน
-        while (image1.mid === image2.mid) {
-          image2 = images[Math.floor(Math.random() * images.length)];
-        }
-        res.status(200).json([image1, image2]);
+        res.status(200).json({
+          random: result,
+          limit: limit,
+        });
       }
     }
   );
 });
+
+// router.get("/random", async (req, res) => {  
+//   let limit: number;
+//   // ดึงเวลา limit การสุ่มรูป
+//   let result: any = await new Promise((resolve, reject) => {
+//     conn.query(
+//       "SELECT * FROM `system`",
+//       (err, result) => {
+//         if (err) {
+//           reject(err);
+//         } else {
+//           resolve(result);
+//         }
+//       }
+//     );
+//   });
+//   limit = result[0]["limit"];
+//   // สุ่มรูป
+//   conn.query(
+//     "SELECT image.mid, image.path, image.name, image.uid, SUM(vote.vote) AS score FROM `image`, `vote` WHERE vote.mid = image.mid GROUP by image.mid",
+//     (err, result) => {
+//       if (err) {
+//         res.status(500).json({ result: err.sqlMessage });
+//       } else {
+//         const images: Image[] = result;
+
+//         let image1: Image = images[Math.floor(Math.random() * images.length)];
+//         let image2: Image = images[Math.floor(Math.random() * images.length)];
+//         // สุ่มอีกรูปใหม่จนกว่ารูปทั้ง2 ไม่ใช่รูปของคนคนเดียวกัน
+//         while (image1.mid === image2.mid) {
+//           image2 = images[Math.floor(Math.random() * images.length)];
+//         }
+//         res.status(200).json({
+//           random: [image1, image2],
+//           limit: limit,
+//         });
+//       }
+//     }
+//   );
+// });
 
 // Function ***************************************************************************************************
 
