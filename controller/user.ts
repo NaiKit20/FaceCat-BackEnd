@@ -51,10 +51,23 @@ router.get("/all", (req, res) => {
   });
 });
 
+// ดึงข้อมูลระบบของ admin
+router.get("/admin/:uid", (req, res) => {
+  let uid = +req.params.uid;
+  conn.query("SELECT * FROM `system` WHERE uid = ?", [uid], (err, result) => {
+    if (err) {
+      res.status(500).json(err);
+    } else {
+      res.status(200).json(result[0]);
+    }
+  });
+});
+
 // แก้ไข limit ของระบบ ผ่านแล้ว
-router.put("/limit/:sec", (req, res) => {
+router.put("/limit/:uid/:sec", (req, res) => {
+  let uid = +req.params.uid;
   let sec = +req.params.sec;
-  conn.query("UPDATE `system` SET `limit`= ? WHERE uid = 89", [sec], (err, result) => {
+  conn.query("UPDATE `system` SET `limit`= ? WHERE uid = ?", [sec, uid], (err, result) => {
     if (err) {
       res.status(500).json(err);
     } else {
@@ -103,7 +116,7 @@ router.post("/register", (req, res) => {
 });
 
 // เข้าสู่ระบบ ผ่านแล้ว
-router.post("/login", (req, res) => {
+router.post("/login", async (req, res) => {
   let login: LoginPostReq = req.body;
   conn.query(
     "SELECT * FROM `user` WHERE email = ? AND password = ?",
