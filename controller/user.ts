@@ -51,6 +51,18 @@ router.get("/all", (req, res) => {
   });
 });
 
+// แก้ไข limit ของระบบ ผ่านแล้ว
+router.put("/limit/:sec", (req, res) => {
+  let sec = +req.params.sec;
+  conn.query("UPDATE `system` SET `limit`= ? WHERE uid = 89", [sec], (err, result) => {
+    if (err) {
+      res.status(500).json(err);
+    } else {
+      res.status(200).json(result);
+    }
+  });
+});
+
 // ค้นหาข้อมูล user จาก uid ผ่านแล้ว
 router.get("/:uid", (req, res) => {
   let uid = +req.params.uid;
