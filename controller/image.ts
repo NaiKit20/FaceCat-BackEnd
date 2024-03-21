@@ -240,9 +240,7 @@ router.get("/random", async (req, res) => {
   );
 });
 
-// router.get("/random", async (req, res) => {
-//   console.log("random");
-  
+// router.get("/random", async (req, res) => {  
 //   let limit: number;
 //   // ดึงเวลา limit การสุ่มรูป
 //   let result: any = await new Promise((resolve, reject) => {
