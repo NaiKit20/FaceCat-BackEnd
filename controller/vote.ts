@@ -38,8 +38,8 @@ router.post("/:win/:Wscore/:lose/:Lscore", (req, res) => {
 // สรุปอันดับรูปภาพ 7 วันย้อนหลัง ยังไม่ได้ใช้งาน
 router.get("/:mid", async (req, res) => {
   const mid: number = parseInt(req.params.mid);
-  let name:string;
-  let path:string;
+  let name: string;
+  let path: string;
   let ranks: number[] = [];
   let date: string[] = [];
   // หาลำดับของรูปภาพทั้งหมดในเวลา 7 วันที่ผ่านมา
@@ -90,8 +90,8 @@ router.get("/:mid", async (req, res) => {
 // สรุปคะแนนของรูปภาพที่ต้องการ ผ่านแล้ว
 router.get("/score/:mid", async (req, res) => {
   const mid: number = parseInt(req.params.mid);
-  let name:string;
-  let path:string;
+  let name: string;
+  let path: string;
   let scores: number[] = [];
   let date: string[] = [];
   // หาคะแนนของรูปภาพในเวลา 7 วันที่ผ่านมา
@@ -106,16 +106,16 @@ router.get("/score/:mid", async (req, res) => {
             reject(err);
           } else {
             resolve(result);
-            console.log(result);
-            
           }
         }
       );
     });
     // คะแนนรูปภาพของวันย้อนหลังที่ i วัน
     let image: Image[] = result;
-    name = image[0].name;
-    path = image[0].path;
+    if (i == 0) {
+      name = image[0].name;
+      path = image[0].path;
+    }
     // หาคะแนนของรูปภาพที่ต้องการในวันย้อนหลังที่ i วัน
     scores.push(image[0].score);
     // เก็บ string ของวันย้อนหลังที่ i
