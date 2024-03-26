@@ -96,7 +96,7 @@ router.get("/score/:mid", async (req, res) => {
   let scores: number[] = [];
   let date: string[] = [];
   // หาคะแนนของรูปภาพในเวลา 7 วันที่ผ่านมา
-  for (let i = 0; i < 8; i++) {
+  for (let i = 0; i < 9; i++) {
     let result: any = await new Promise((resolve, reject) => {
       // ค้นหาคะแนนรูปภาพย้อนหลังตามจำนวนวันที่ต้องการ ด้วยวันย้อนหลังที่ i วัน
       conn.query(
@@ -126,13 +126,21 @@ router.get("/score/:mid", async (req, res) => {
     const formattedDate = currentDate.toISOString().split("T")[0];
     date.push(formattedDate);
   }
+  // ตรวจสอบการเพิ่มลดคะแนน วันนี้กับเมื่อวาน
+  for (let i = 0; i < date.length - 1; i++) {
+    if (scores[i] - scores[i + 1] > 0) {
+      date[i] = date[i] + "\n" + "+" + (scores[i] - scores[i + 1]);
+    } else if(scores[i] - scores[i + 1] < 0) {
+      date[i] = date[i] + "\n" + (scores[i] - scores[i + 1]);
+    }
+  }
 
   res.status(200).json({
     mid: mid,
     uid: uid!,
     name: name!,
     path: path!,
-    score: scores,
-    date: date,
+    score: scores.slice(0, 8),
+    date: date.slice(0, 8),
   });
 });
