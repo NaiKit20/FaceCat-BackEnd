@@ -28,6 +28,27 @@ class FileMiddleware {
   });
 }
 
+router.put("/:mid/:name", (req, res) => {
+  const mid = +req.params.mid;
+  const name = req.params.name;
+  conn.query(
+    "UPDATE `image` SET `name`= ? WHERE mid = ?", [name, mid],
+    (err, result) => {
+      if (err) {
+        res.status(500).json({
+          affectedRows: result.affectedRows,
+          result: err.sqlMessage,
+        });
+      } else {
+        res.status(200).json({
+          affectedRows: result.affectedRows,
+          result: "",
+        });
+      }
+    }
+  );
+});
+
 // แสดงรูปภาพทั้งหมด แสดงตามคะแนนมากไปน้อย โดยเวลาปัจจุบัน
 router.get("/", (req, res) => {
   conn.query(

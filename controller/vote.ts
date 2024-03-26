@@ -91,11 +91,12 @@ router.get("/:mid", async (req, res) => {
 router.get("/score/:mid", async (req, res) => {
   const mid: number = parseInt(req.params.mid);
   let name: string;
+  let uid: number;
   let path: string;
   let scores: number[] = [];
   let date: string[] = [];
   // หาคะแนนของรูปภาพในเวลา 7 วันที่ผ่านมา
-  for (let i = 0; i < 7; i++) {
+  for (let i = 0; i < 8; i++) {
     let result: any = await new Promise((resolve, reject) => {
       // ค้นหาคะแนนรูปภาพย้อนหลังตามจำนวนวันที่ต้องการ ด้วยวันย้อนหลังที่ i วัน
       conn.query(
@@ -113,6 +114,7 @@ router.get("/score/:mid", async (req, res) => {
     // คะแนนรูปภาพของวันย้อนหลังที่ i วัน
     let image: Image[] = result;
     if (i == 0) {
+      uid = image[0].uid;
       name = image[0].name;
       path = image[0].path;
     }
@@ -127,6 +129,7 @@ router.get("/score/:mid", async (req, res) => {
 
   res.status(200).json({
     mid: mid,
+    uid: uid!,
     name: name!,
     path: path!,
     score: scores,
